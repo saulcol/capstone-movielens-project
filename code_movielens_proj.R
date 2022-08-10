@@ -86,6 +86,7 @@ if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.
 if(!require(ggthemes)) install.packages("ggthemes", repos = "http://cran.us.r-project.org")
 if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
 if(!require(lubridate)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(Hmisc)) install.packages("scales", repos = "http://cran.us.r-project.org")
 
 library(this.path)
 library(tidyverse)
@@ -706,8 +707,8 @@ RMSE <- function(true_ratings, predicted_ratings){
 # we can load the objects "train", "test" to simplify the construction of our model if we want
 # just by running this code. In case it is necessary.
 #
-# load objects "train", "test" from the file path: rdas/cp_movielens.rda. Take a few seconds
-load("./rdas/cp_movielens.rda")
+# load objects "train", "test" from the file path: rdas/cp_movielens_train_test.rda. Take a few seconds
+load("./rdas/cp_movielens_train_test.rda")
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -837,5 +838,82 @@ scores %>% knitr::kable()
 # 3.2.3. Adding the User Effect (bu)
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.2.4. Verifying the models
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# First, we are going to check if the model y_hat = mu + bi (Movie Effect) makes good ratings predictions.
+# For that, we need to create this new dataset using the "train" set that connects movieId to movie title.
+titles_bi <- train %>% 
+  select(movieId, title) %>% 
+  distinct()
+
+# Now, we are going to display the 10 best movies based on bi with this code. Here we are using the bi set,
+# titles_bi set and ranked by bi.
+bi %>% 
+  inner_join(titles_bi, by = "movieId") %>% 
+  arrange(-b_i) %>%
+  slice(1:10) %>%
+  select(title)
+
+# And here are the 10 worst movies according to bi.
+bi %>% 
+  inner_join(titles_bi, by = "movieId") %>% 
+  arrange(b_i) %>%
+  slice(1:10) %>%
+  select(title)
+
+
+# Number of ratings for 10 best movies based on bi using the train set
+train %>% 
+  left_join(bi, by = "movieId") %>%
+  arrange(-b_i) %>% 
+  group_by(title) %>% 
+  summarise(n = n()) %>%
+  slice(1:10)
+
+
+# Let us inspect how often they are rated.
+train %>% count(movieId) %>% 
+  left_join(bi, by="movieId") %>%
+#  left_join(titles_bi, by = "movieId") %>%  
+  arrange(-b_i) %>% 
+  slice(1:10) %>% 
+  pull(n)
+
+train %>% count(movieId) %>% 
+  left_join(bi, by="movieId") %>%
+#  left_join(titles_bi, by = "movieId") %>%  
+  arrange(b_i) %>% 
+  slice(1:10) %>% 
+  pull(n)
+
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.2.4. Verifying the model
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.2 Linear Model
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+################################################################################################
+#
+# 3.3 Regularization
+#
+################################################################################################
+#
 
 

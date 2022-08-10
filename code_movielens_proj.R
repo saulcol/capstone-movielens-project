@@ -4,7 +4,7 @@
 # Building a Movie Recommendation system using MovieLens dataset
 #
 # author: "Saúl Santillán Gutiérrez"
-# date: "August 4, 2022"
+# date: "August 10, 2022"
 # 
 ################################################################################################
 
@@ -15,7 +15,7 @@
 # 
 ################################################################################################
 #
-#
+# See the Rmarkdown document "report_movielens_proj.Rmd" to get more information about it.
 
 
 
@@ -54,11 +54,11 @@
 
 ################################################################################################
 #
-# 1. General Description
+# 1. Overview
 # 
 ################################################################################################
 #
-# 
+# See the Rmarkdown document "report_movielens_proj.Rmd" to get more information about it.
 
 
 
@@ -116,7 +116,7 @@ ifelse(!dir.exists("rdas"), dir.create("rdas"), "Folder rdas exists already")
 v <- R.Version() # It is a List
 
 
-#+++++++ Downloading the MovieLens 10M dataset, create the datasets edx and validation +++++++++
+#+++++++ Downloading the MovieLens 10M dataset, create the edx and validation datasets +++++++++
 #
 # IMPORTANT: We can choose if we run this part of the code only once.
 #
@@ -227,9 +227,8 @@ if(file.exists(paste0(wd, "/ml-10M100K/ratings.dat"))==TRUE & file.exists(paste0
 # If we had any trouble with above code, at the moment to downloading or others problems,
 # because I saw in the discussion forum some people wrote about it.
 # I provided a .rda file; with the objects "edx" and "validation", from my gitlab.
+#
 # Download the file from gitlab to "rdas" directory
-# Error: cannot open destfile 'D:/test_r/rda/', reason 'Permission denied'
-# solution: add the name of the file
 # Discomment the next line, if we had a trouble with the code above. This process is more faster!!
 #download.file("https://gitlab.com/saulcol/rdas/-/raw/main/cp_movielens.rda", paste0(wd, "/rdas/cp_movielens.rda"))
 
@@ -240,14 +239,12 @@ if(file.exists(paste0(wd, "/rdas/cp_movielens.rda"))==TRUE){
 }else{
   print("File cp_movielens.rda does NOT exist...downloading")
   # Download the file from gitlab to "rdas" directory
-  # Error: cannot open destfile 'D:/test_r/rda/', reason 'Permission denied'
-  # solution: add the name of the file
   download.file("https://gitlab.com/saulcol/rdas/-/raw/main/cp_movielens.rda", paste0(wd, "/rdas/cp_movielens.rda"))
 }
 
 
 # Remove these objects from the Global Environment if they exist
-if(exists("edx")) rm("edxx", envir = globalenv())
+if(exists("edx")) rm("edx", envir = globalenv())
 if(exists("validation")) rm("validation", envir = globalenv())
 
 #
@@ -264,6 +261,9 @@ if(exists("validation")) rm("validation", envir = globalenv())
 # 2.2 Performing Data Exploration and Visualization to "edx" dataset
 #
 ################################################################################################
+#
+#
+# +++++++++++++++++++ Overall Exploration in the Dataset +++++++++++++++++++++++
 #
 # load objects "edx", "validation" from the file path: rdas/cp_movielens.rda. Take a few seconds
 load("./rdas/cp_movielens.rda")
@@ -358,13 +358,28 @@ colSums(is.na(edx))
 # How many different users are in the edx dataset?
 length(unique(edx$userId))
 
-# Plot a historgram of the Distribution of users rating movies
+# Plot a histogram of the Distribution of users rating movies (incorrect)
+# Without adjusting the X axis
 edx %>% group_by(userId) %>%
-  summarise(n=n()) %>%
-  ggplot(aes(n)) +
+  summarise(total=n()) %>%
+  ggplot(aes(total)) +
+  geom_histogram(color = "black") +
+  ggtitle("Distribution of Users",
+          subtitle = "Without Adjusting the X axis.") +
+  xlab("Number of Ratings") +
+  ylab("Number of Users") + 
+  theme_bw()
+
+
+# Plot a histogram of the Distribution of users rating movies (correct)
+# Adjusting the X axis with scale_x_log10()
+edx %>% group_by(userId) %>%
+  summarise(total=n()) %>%
+  ggplot(aes(total)) +
   geom_histogram(color = "black") +
   scale_x_log10() + 
-  ggtitle("Users") +
+  ggtitle("Distribution of Users",
+          subtitle = "Adjusting the X axis with scale_x_log10().") +
   xlab("Number of Ratings") +
   ylab("Number of Users") + 
   theme_bw()
@@ -386,23 +401,15 @@ edx %>%
   top_n(20) %>%
   arrange(desc(total))
 
-# Plot a histogram of the Distribution of movies
-edx %>% group_by(movieId) %>%
-  summarise(total=n()) %>%
-  ggplot(aes(total)) +
-  geom_histogram(color = "black") +
-  ggtitle("Movies") +
-  xlab("Number of Ratings") +
-  ylab("Number of Movies") + 
-  theme_bw()
-
-# Correct the above plot adding scale_x_log10()
+# Plot a histogram of the Distribution of movies (correct)
+# Adjusting the X axis with scale_x_log10()
 edx %>% group_by(movieId) %>%
   summarise(total=n()) %>%
   ggplot(aes(total)) +
   geom_histogram(color = "black") +
   scale_x_log10() + 
-  ggtitle("Movies") +
+  ggtitle("Distribution of Movies",
+          subtitle = "Adjusting the X axis with scale_x_log10().") +
   xlab("Number of Ratings") +
   ylab("Number of Movies") + 
   theme_bw()
@@ -461,11 +468,11 @@ edx %>%
 # If we remember the "timestamp" variable has a range from 789652009 to 1231131736.
 # And it is measured in seconds since January 1st, 1970.
 #
-# Let us to use the as_datetime() function of the package lubridate with the minimun value
+# Let us to use the as_datetime() function of the package lubridate with the minimum value
 # to know what is the starting date
 as_datetime(min(edx$timestamp))
 
-# Now the same process but with the maximun value to know what is the ending date
+# Now the same process but with the maximum value to know what is the ending date
 as_datetime(max(edx$timestamp))
 
 # Next step, we need to transform the variable into an appropriate date format
@@ -560,9 +567,6 @@ edx %>% group_by(genres, movieId) %>%
 #+++++++++++++++++++++ Create the train set and test set from the edx set ++++++++++++++++++++++
 #
 #
-#set.seed(1234, sample.kind="Rounding")
-#set.seed(1, sample.kind="Rounding")
-
 # Set the seed according to the R version
 if (paste(v$major, v$minor, sep = ".") < "3.6.0"){
   print("version of R is MINOR to 3.6.0, use set.seed(1)")
@@ -704,7 +708,7 @@ RMSE <- function(true_ratings, predicted_ratings){
 #
 # y_hat = mu + bi + bu + epsilon u,i
 
-# we can load the objects "train", "test" to simplify the construction of our model if we want
+# we can load the objects "train", "test" to simplify the construction of our model if we want,
 # just by running this code. In case it is necessary.
 #
 # load objects "train", "test" from the file path: rdas/cp_movielens_train_test.rda. Take a few seconds
@@ -732,7 +736,7 @@ scores <- bind_rows(scores,
                     tibble(Method = "Mean",
                            RMSE = RMSE(test$rating, mu)))
 
-# Show the RMSE improvement
+# Display the RMSE improvement
 scores %>% knitr::kable()
 
 #
@@ -780,7 +784,7 @@ scores <- bind_rows(scores,
                     tibble(Method = "Mean + bi",
                            RMSE = RMSE(test$rating, y_hat_bi)))
 
-# Show the RMSE improvement
+# Display the RMSE improvement
 scores %>% knitr::kable()
 
 #
@@ -829,7 +833,7 @@ scores <- bind_rows(scores,
                     tibble(Method = "Mean + bi + bu",
                            RMSE = RMSE(test$rating, y_hat_bi_bu)))
 
-# Show the RMSE improvement
+# Display the RMSE improvement
 scores %>% knitr::kable()
 
 #
@@ -1057,3 +1061,40 @@ scores %>% knitr::kable()
 scores[6,]
 
 scores[6,2] < RMSE_GOAL
+
+# As we could see, we achieved our goal.
+
+
+# Top 10 best movies
+validation %>%
+  left_join(bi_end_edx, by = "movieId") %>%
+  left_join(bu_end_edx, by = "userId") %>%
+  mutate(pred = mu_end_edx + b_i + b_u) %>%
+  arrange(-pred) %>%
+  group_by(title) %>%
+  select(title) %>%
+  top_n(10)
+
+# Top 10 worst movies
+validation %>%
+  left_join(bi_end_edx, by = "movieId") %>%
+  left_join(bu_end_edx, by = "userId") %>%
+  mutate(pred = mu_end_edx + b_i + b_u) %>%
+  arrange(pred) %>%
+  group_by(title) %>%
+  select(title) %>%
+  top_n(10)
+
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.4.1. Linear Model With Regularization
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.4 Ending Results in the Validation Set
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

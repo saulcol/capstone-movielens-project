@@ -1004,3 +1004,56 @@ scores %>% knitr::kable()
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
+
+################################################################################################
+#
+# 3.4 Ending Results in the Validation Set
+#
+################################################################################################
+#
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.4.1. Linear Model With Regularization
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# Previously we were able to verify that our Linear model with Regularization reached the
+# goal of RMSE. Now we will proceed to perform the final validation on the validation set.
+# Here is the code.
+#
+# Mean
+mu_end_edx <- mean(edx$rating)
+
+# Movie effects (bi)
+bi_end_edx <- edx %>% 
+  group_by(movieId) %>%
+  summarise(b_i = sum(rating - mu_end_edx)/(n()+lambda))
+
+# User effects (bu)
+bu_end_edx <- edx %>% 
+  left_join(bi_end_edx, by="movieId") %>%
+  group_by(userId) %>%
+  summarise(b_u = sum(rating - b_i - mu_end_edx)/(n()+lambda))
+
+# Predict mu + bi + bu
+y_hat_end_edx <- validation %>% 
+  left_join(bi_end_edx, by = "movieId") %>%
+  left_join(bu_end_edx, by = "userId") %>%
+  mutate(pred = mu_end_edx + b_i + b_u) %>%
+  pull(pred)
+
+# Compute the RMSE and update the scores table
+scores <- bind_rows(scores, 
+                    tibble(Method = "Ending Regularization on edx and validation", 
+                           RMSE = RMSE(validation$rating, y_hat_end_edx)))
+
+# Display the RMSE improvement
+scores %>% knitr::kable()
+
+
+# Check if the Ending Regularization on edx and validation is minor than RMSE GOAL
+scores[6,]
+
+scores[6,2] < RMSE_GOAL

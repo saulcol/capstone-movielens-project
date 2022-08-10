@@ -881,14 +881,12 @@ train %>%
 # Let us inspect how often they are rated.
 train %>% count(movieId) %>% 
   left_join(bi, by="movieId") %>%
-#  left_join(titles_bi, by = "movieId") %>%  
   arrange(-b_i) %>% 
   slice(1:10) %>% 
   pull(n)
 
 train %>% count(movieId) %>% 
   left_join(bi, by="movieId") %>%
-#  left_join(titles_bi, by = "movieId") %>%  
   arrange(b_i) %>% 
   slice(1:10) %>% 
   pull(n)
@@ -915,5 +913,94 @@ train %>% count(movieId) %>%
 #
 ################################################################################################
 #
+# The next procedure is Regularization, for that we need to regularize the movie and user effects
+# aggregating a penalty term or factor which is known as lambda and which is also a tuning parameter.
+# we establish a set of values for lambda and use cross-validation to pick the best value that
+# minimizes the RMSE.
 
+# establish a set of values for lambda
+lambdas <- seq(0, 10, 0.25)
+
+# use cross-validation for tuning lambda
+rmses <- sapply(lambdas, function(lambda){
+  
+  # Mean
+  mu <- mean(train$rating)
+  
+  # Movie effects (bi)
+  b_i <- train %>% 
+    group_by(movieId) %>%
+    summarise(b_i = sum(rating - mu)/(n()+lambda))
+  
+  # User effects (bu)
+  b_u <- train %>% 
+    left_join(b_i, by="movieId") %>%
+    filter(!is.na(b_i)) %>%
+    group_by(userId) %>%
+    summarise(b_u = sum(rating - b_i - mu)/(n()+lambda))
+  
+  # Predict mu + bi + bu
+  predicted_ratings <- 
+    test %>% 
+    left_join(b_i, by = "movieId") %>%
+    left_join(b_u, by = "userId") %>%
+    filter(!is.na(b_i), !is.na(b_u)) %>%
+    mutate(pred = mu + b_i + b_u) %>%
+    pull(pred)
+  
+  return(RMSE(predicted_ratings, test$rating))
+})
+
+
+# Plot the Lambdas vs RMSE
+tibble(Lambdas = lambdas, RMSE = rmses) %>%
+  ggplot(aes(x = Lambdas, y = RMSE)) +
+  geom_point() +
+  ggtitle("Regularization", 
+          subtitle = "Choose the best value of Lambda that minimizes the RMSE.") +
+  theme_bw()
+
+
+# Here is the best value of lambda
+lambda <- lambdas[which.min(rmses)]
+lambda
+
+
+# Now, we use the optimal value of lambda on the linear model
+#
+# Mean
+mu <- mean(train$rating)
+
+# Movie effects (bi)
+b_i <- train %>% 
+  group_by(movieId) %>%
+  summarise(b_i = sum(rating - mu)/(n()+lambda))
+
+# User effects (bu)
+b_u <- train %>% 
+  left_join(b_i, by="movieId") %>%
+  group_by(userId) %>%
+  summarise(b_u = sum(rating - b_i - mu)/(n()+lambda))
+
+# Predict mu + bi + bu
+y_hat_reg <- test %>% 
+  left_join(b_i, by = "movieId") %>%
+  left_join(b_u, by = "userId") %>%
+  mutate(pred = mu + b_i + b_u) %>%
+  pull(pred)
+
+# Compute the RMSE and update the scores table
+scores <- bind_rows(scores, 
+                    tibble(Method = "Regularized bi + bu", 
+                           RMSE = RMSE(test$rating, y_hat_reg)))
+
+# Display the RMSE improvement
+scores %>% knitr::kable()
+
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3.3 Regularization
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

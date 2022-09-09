@@ -4,7 +4,7 @@
 # Building a Movie Recommendation system using MovieLens dataset
 #
 # author: "Saúl Santillán Gutiérrez"
-# date: "August 10, 2022"
+# date: "September 9, 2022"
 # 
 ################################################################################################
 
@@ -21,7 +21,7 @@
 
 ################################################################################################
 #
-# General Instructions by HarvardX's team
+# General Instructions by HarvardX's Team
 # 
 ################################################################################################
 #
@@ -81,21 +81,26 @@
 # Install the libraries if they do not exist and load them
 if(!require(this.path)) install.packages("this.path", repos = "http://cran.us.r-project.org")
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
-if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+#if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
 if(!require(ggthemes)) install.packages("ggthemes", repos = "http://cran.us.r-project.org")
 if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
-if(!require(lubridate)) install.packages("scales", repos = "http://cran.us.r-project.org")
-if(!require(Hmisc)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(Hmisc)) install.packages("Hmisc", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(huxtable)) install.packages("huxtable", repos = "http://cran.us.r-project.org")
+
 
 library(this.path)
 library(tidyverse)
-library(caret)
+#library(kableExtra)
 library(data.table)
 library(ggthemes)
 library(scales)
-library(lubridate)
 library(Hmisc)
+library(lubridate)
+library(caret)
+library(huxtable)
 
 
 # Assign our RMSE goal to RMSE_GOAL variable. Remember our goal is RMSE < 0.86490
@@ -104,8 +109,8 @@ RMSE_GOAL <- 0.86490
 
 #+++++++++++++++++++ set the working directory and create a subdirectory ++++++++++++++++++++++
 #
-# Get the current path
-wd <- this.dir()
+# Get the current path with the `this.dir` function
+wd <- this.dir(default = getwd())
 # Set the working directory
 setwd(wd)
 # check if the folder “rdas” exists in the current directory, if not creates a "rdas" directory
@@ -211,6 +216,7 @@ if(file.exists(paste0(wd, "/ml-10M100K/ratings.dat"))==TRUE & file.exists(paste0
   rm(dl, ratings, movies, test_index, temp, movielens, removed)
   
   #+++++++++ save objects "edx", "validation" in the file path: rdas/cp_movielens.rda +++++++++
+  # NOTE: Take aprox. 2 to 3 minutes
   save(edx, validation, file = "./rdas/cp_movielens.rda")
 }
 #
@@ -239,13 +245,13 @@ if(file.exists(paste0(wd, "/rdas/cp_movielens.rda"))==TRUE){
 }else{
   print("File cp_movielens.rda does NOT exist...downloading")
   # Download the file from gitlab to "rdas" directory
+  # NOTE: Take aprox. 1 to 2 minutes
   download.file("https://gitlab.com/saulcol/rdas/-/raw/main/cp_movielens.rda", paste0(wd, "/rdas/cp_movielens.rda"))
+  
+  # Remove these objects from the Global Environment if they exist
+  if(exists("edx")) rm("edx", envir = globalenv())
+  if(exists("validation")) rm("validation", envir = globalenv())
 }
-
-
-# Remove these objects from the Global Environment if they exist
-if(exists("edx")) rm("edx", envir = globalenv())
-if(exists("validation")) rm("validation", envir = globalenv())
 
 #
 #++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
@@ -294,7 +300,6 @@ dim(edx)[1]
 # Number of columns:
 dim(edx)[2]
 
-
 # The "edx" dataset is composed by 9,000,055 observations (rows) and 6 variables (columns).
 # As well, its six columns have these characteristics:
 #userId   : integer
@@ -305,16 +310,17 @@ dim(edx)[2]
 #genres   : character
 
 
-# View the content of the first six rows of the "edx" dataset
-head(edx)
-
 # Get a summary statistics 
 summary(edx)
 
 # Other way, to obtain a better summary statistics is with
-# the function describe() of the package Hmisc
-# NOTE: Take aprox. 1 minute
+# the function `describe()` of the package `Hmisc`
+# NOTE: Take aprox. 2 to 3 minutes
 describe(edx)
+
+
+# View the content of the first six rows of the "edx" dataset
+head(edx)
 
 
 # In general, it can be observed the mentioned dataset does not have missing values.
@@ -330,7 +336,7 @@ describe(edx)
 
 # +++++++++++++++++++ Are there missing values? +++++++++++++++++++++++
 #
-# Earlier when we used the describe function we saw that the six columns do not have missing values.
+# Earlier when we used the `describe` function we saw that the six columns do not have missing values.
 # We can corroborate it with these codes.
 
 # Count missing values
@@ -341,7 +347,7 @@ any(is.na(edx))
 #[1] FALSE
 
 # count total missing values in each column of data frame
-sapply(edx, function(x) sum(is.na(x)))
+#sapply(edx, function(x) sum(is.na(x)))
 colSums(is.na(edx))
 
 
@@ -358,34 +364,57 @@ colSums(is.na(edx))
 # How many different users are in the edx dataset?
 length(unique(edx$userId))
 
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot a histogram of the Distribution of users rating movies (incorrect)
 # Without adjusting the X axis
-edx %>% group_by(userId) %>%
-  summarise(total=n()) %>%
-  ggplot(aes(total)) +
-  geom_histogram(color = "black") +
-  ggtitle("Distribution of Users",
+edx %>% count(userId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(color = "black", alpha = 0.3) +
+  ggtitle("Distribution of Users Rating movies",
           subtitle = "Without Adjusting the X axis.") +
   xlab("Number of Ratings") +
   ylab("Number of Users") + 
   theme_bw()
 
+#```  
 
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot a histogram of the Distribution of users rating movies (correct)
 # Adjusting the X axis with scale_x_log10()
-edx %>% group_by(userId) %>%
-  summarise(total=n()) %>%
-  ggplot(aes(total)) +
-  geom_histogram(color = "black") +
+edx %>% count(userId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(color = "black", alpha = 0.3) +
   scale_x_log10() + 
-  ggtitle("Distribution of Users",
+  ggtitle("Distribution of Users Rating movies",
           subtitle = "Adjusting the X axis with scale_x_log10().") +
   xlab("Number of Ratings") +
   ylab("Number of Users") + 
   theme_bw()
 
+#```  
+
 # The major part of users rate less movies, while a few users rate more than a thousand movies.
 # We notice that the distribution is right skewed.
+
+
+# Here is the histogram with a smooth density curve of the users.  
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
+# Plot a histogram with Smooth density of users rating movies (correct)
+# Adjusting the X axis with scale_x_log10()
+edx %>% count(userId) %>%
+  ggplot(aes(x=n, y=..density..)) +
+  geom_histogram(color = "black", alpha = 0.3) +
+  geom_density(lwd = 1, color="red", fill="red", alpha = 0.25) +
+  scale_x_log10() + 
+  ggtitle("Histogram with Smooth Density of Users Rating movies",
+          subtitle = "Adjusting the X axis with scale_x_log10().") +
+  xlab("Number of Ratings") +
+  theme_bw()
+
+#```  
 
 
 
@@ -398,15 +427,16 @@ n_distinct(edx$movieId)
 edx %>%
   group_by(movieId, title) %>%
   summarise(total = n()) %>%
-  top_n(20) %>%
-  arrange(desc(total))
+  arrange(desc(total)) %>%
+  head(20)
 
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot a histogram of the Distribution of movies (correct)
 # Adjusting the X axis with scale_x_log10()
-edx %>% group_by(movieId) %>%
-  summarise(total=n()) %>%
-  ggplot(aes(total)) +
-  geom_histogram(color = "black") +
+edx %>% count(movieId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(color = "black", alpha = 0.3) +
   scale_x_log10() + 
   ggtitle("Distribution of Movies",
           subtitle = "Adjusting the X axis with scale_x_log10().") +
@@ -414,6 +444,7 @@ edx %>% group_by(movieId) %>%
   ylab("Number of Movies") + 
   theme_bw()
 
+#```  
 
 
 #+++++++++++++++++++ Data Analysis in the Ranting column ++++++++++++++++++++++
@@ -436,8 +467,8 @@ edx %>%
 edx %>%
   group_by(rating) %>%
   summarise(total = n()) %>%
-  top_n(5) %>%
-  arrange(desc(total))
+  arrange(desc(total)) %>%
+  head(5)
 
 
 # In general, half star ratings are less common than whole star ratings (e.g., there are fewer
@@ -451,15 +482,18 @@ edx %>%
 
 
 # Graphically it can be obtained with this code:
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 edx %>%
   group_by(rating) %>%
   summarise(count = n()) %>%
   ggplot(aes(x = rating, y = count)) +
-  geom_line() +
+  geom_line(lwd = 1) +
   ggtitle("Rating Distribution") +
   xlab("Type of Rating") +
   ylab("Total") +
   theme_bw()
+
+#```  
 
 
 
@@ -468,34 +502,39 @@ edx %>%
 # If we remember the "timestamp" variable has a range from 789652009 to 1231131736.
 # And it is measured in seconds since January 1st, 1970.
 #
-# Let us to use the as_datetime() function of the package lubridate with the minimum value
-# to know what is the starting date
-as_datetime(min(edx$timestamp))
+# Let us to use the `as.Date` and `as.POSIXct` functions of the package `base`
+# with the minimum value to know what is **the starting date**. We could also
+# use the `as_datetime` function from the `lubridate` package.
+as.Date(as.POSIXct(min(edx$timestamp), origin="1970-01-01", tz = "GMT"))
 
 # Now the same process but with the maximum value to know what is the ending date
-as_datetime(max(edx$timestamp))
+as.Date(as.POSIXct(max(edx$timestamp), origin="1970-01-01", tz = "GMT"))
 
-# Next step, we need to transform the variable into an appropriate date format
-# using the as_datetime() function
-edx <- mutate(edx, date = as_datetime(timestamp))
-
-# Verify which is the range period of the time of ratings
-tibble(`Starting Date` = date(as_datetime(min(edx$timestamp), origin="1970-01-01")),
-       `Ending Date` = date(as_datetime(max(edx$timestamp), origin="1970-01-01"))) %>%
+# Next, verify which is the range period of the time of ratings
+# using the `duration` function from the `lubridate` package
+tibble(`Starting Date` = as.Date(as.POSIXct(min(edx$timestamp), origin="1970-01-01", tz = "GMT")),
+       `Ending Date` = as.Date(as.POSIXct(max(edx$timestamp), origin="1970-01-01", tz = "GMT"))) %>%
   mutate(`Range Period` = duration(max(edx$timestamp)-min(edx$timestamp)))
 
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot the histogram of rating distribution by years
-edx %>% mutate(year = year(as_datetime(timestamp, origin="1970-01-01"))) %>%
+edx %>% mutate(year = year(as.Date(as.POSIXct(timestamp,
+                                              origin="1970-01-01", tz = "GMT")))) %>%
   ggplot(aes(x=year)) +
-  geom_histogram(color = "black") +
+  geom_histogram(color = "black", alpha = 0.3) +
   ggtitle("Rating Distribution By Year") +
   xlab("Year") +
   ylab("Number of Ratings") +
   scale_y_continuous(labels = comma) +
   theme_bw()
 
+#```  
+
+
 # Dates with more ratings
-edx %>% mutate(date = date(as_datetime(timestamp, origin="1970-01-01"))) %>%
+edx %>% mutate(date = as.Date(as.POSIXct(timestamp,
+                                         origin="1970-01-01", tz = "GMT"))) %>%
   group_by(date, title) %>%
   summarise(total = n()) %>%
   arrange(desc(total)) %>%
@@ -509,11 +548,11 @@ edx %>% mutate(date = date(as_datetime(timestamp, origin="1970-01-01"))) %>%
 length(unique(edx$genres))
 
 
-# View the ten most viewed genres
+# Display the ten most viewed genres
 edx %>% group_by(genres) %>% 
   summarise(total=n()) %>%
-  top_n(10) %>%
-  arrange(desc(total))
+  arrange(desc(total)) %>%
+  head(10) %>%
 
 
 # Various movies are organized or cataloged by more than one genre.
@@ -522,20 +561,20 @@ tibble(num_genres = str_count(edx$genres, fixed("|")),
        genres = edx$genres) %>% 
   group_by(num_genres, genres) %>%
   summarise(n = n()) %>%
-  top_n(10) %>%
-  arrange(desc(num_genres))
+  arrange(desc(num_genres)) %>%
+  head(10) %>%
 
 
 # See the top ten most genres by movie
 edx %>% group_by(genres, movieId) %>% 
   summarise(total=n()) %>%
-  top_n(10) %>%
-  arrange(desc(total))
+  arrange(desc(total)) %>%
+  head(10) %>%
 
 #
 #++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
 #
-# 2.2 Performing Data Exploration and Visualization to "edx" Data set
+# 2.2 Performing Data Exploration and Visualization to "edx" Dataset
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -543,7 +582,7 @@ edx %>% group_by(genres, movieId) %>%
 
 ################################################################################################
 #
-# 2.3 Preparing and Cleaning the Training and Testing Data sets
+# 2.3 Preparing and Cleaning the Training and Testing Datasets
 #
 ################################################################################################
 #
@@ -559,9 +598,9 @@ edx %>% group_by(genres, movieId) %>%
 #
 # IMPORTANT: Please be sure not to use the validation set (the final hold-out test set) for training
 # or regularization - you should create an additional partition of training and test sets from the
-# provided edx data set to experiment with multiple parameters or use cross-validation.
+# provided `edx` data set to experiment with multiple parameters or use cross-validation.
 #
-# Remember your goal is to get a RMSE < 0.86490.
+# Remember our goal is to get a RMSE < 0.86490.
 #
 #
 #+++++++++++++++++++++ Create the train set and test set from the edx set ++++++++++++++++++++++
@@ -582,10 +621,10 @@ if (paste(v$major, v$minor, sep = ".") < "3.6.0"){
 # +++++++++++++++++++ Create `train` set, `test` set from the `edx` set ++++++++++++++++++++
 # +++++++++++++++++++++ and save them to `/rdas/cp_movielens.rda` ++++++++++++++++++++++++
 #
-# We must split the 'edx' set in 2 parts: the training and test sets.
-# We use the same process employed to create 'edx' and 'validation' sets.
+# We must split the `edx` set in 2 parts: the training and test sets.
+# We use the same process employed to create `edx` and 'validation' sets.
 #
-# "test" set will be 10% and "train" set 90% of "edx" data
+# `test` set will be 10% and `train` set 90% of `edx` data
 test_index <- createDataPartition(y = edx$rating, times = 1, p = 0.1, list = FALSE)
 train <- edx[-test_index,]
 temp <- edx[test_index,]
@@ -618,7 +657,17 @@ test  <- test  %>% select(userId, movieId, rating, title)
 
 
 #+++++++++ save objects "train", "test" in the file path: rdas/cp_movielens_train_test.rda +++++++++
+# NOTE: Take aprox. 2 to 3 minutes
 save(train, test, file = "./rdas/cp_movielens_train_test.rda")
+
+
+#++++++++++++ If we have some trouble download "cp_movielens_train_test.rda" file and +++++++++++++
+#++++++++++++++++++++ save it in the file path: rdas/cp_movielens_train_test.rda +++++++++++++++++++
+#
+# Download the file from gitlab to "rdas" directory
+# Discomment the next line, if we had a trouble with the code above.
+# NOTE: Take aprox. 1 to 2 minutes
+#download.file("https://gitlab.com/saulcol/rdas/-/raw/main/cp_movielens_train_test.rda", paste0(wd, "/rdas/cp_movielens_train_test.rda"))
 
 #
 #++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
@@ -671,7 +720,7 @@ save(train, test, file = "./rdas/cp_movielens_train_test.rda")
 #
 ################################################################################################
 #
-# Define the loss function
+# First, we define the loss function
 #
 # Define the Root Mean Squared Error (RMSE) function
 RMSE <- function(true_ratings, predicted_ratings){
@@ -696,7 +745,7 @@ RMSE <- function(true_ratings, predicted_ratings){
 # It is important to remember that before creating the model we need to know that:
 #
 # The model must be built on the training set, and the test set must be employed to test
-# the model. After that, when the model is finished and ready, we will use the 'validation' set
+# the model. After that, when the model is finished and ready, we will use the `validation` set
 # to compute the final RMSE.
 #
 # To carry out this model we are going to follow the procedures stipulated and learned in
@@ -704,14 +753,34 @@ RMSE <- function(true_ratings, predicted_ratings){
 #
 # https://rafalab.github.io/dsbook/large-datasets.html#recommendation-systems
 #
-# We are going to build the linear model based on the formula:
+# We are going to create our linear model established by this formula:
 #
 # y_hat = mu + bi + bu + epsilon u,i
 
-# we can load the objects "train", "test" to simplify the construction of our model if we want,
+
+# we can load the objects `train`, `test` to simplify the construction of our model if we want,
 # just by running this code. In case it is necessary.
 #
-# load objects "train", "test" from the file path: rdas/cp_movielens_train_test.rda. Take a few seconds
+###+++++++++ If we have some trouble download "cp_movielens_train_test.rda" file and ++++++++++
+###+++++++++++++++++ save it in the file path: rdas/cp_movielens_train_test.rda ++++++++++++++++
+#
+# Verify if the `cp_movielens_train_test.rda` file exists in the "rdas" directory
+if(file.exists(paste0(wd, "/rdas/cp_movielens_train_test.rda"))==TRUE){
+  print("File cp_movielens_train_test.rda exists already")
+}else{
+  print("File cp_movielens_train_test.rda does NOT exist...downloading")
+  # Download the file from gitlab to "rdas" directory
+  # NOTE: Take aprox. 1 to 2 minutes
+  download.file("https://gitlab.com/saulcol/rdas/-/raw/main/cp_movielens_train_test.rda",
+                paste0(wd, "/rdas/cp_movielens_train_test.rda"))
+  
+  # Remove these objects from the Global Environment if they exist
+  if(exists("train")) rm("train", envir = globalenv())
+  if(exists("test")) rm("test", envir = globalenv())
+}
+
+#
+# load objects `train`, `test` from the file path: rdas/cp_movielens_train_test.rda. Take a few seconds
 load("./rdas/cp_movielens_train_test.rda")
 
 
@@ -721,17 +790,17 @@ load("./rdas/cp_movielens_train_test.rda")
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
-# The first prediction is the mean of the ratings (mu) represented for this formula:
+# We start by predicting the mean of the ratings ($mu$) and its formula is:
 #
-# y_hat = mu
+# y_hat = mu + epsilon u,i
 #
 # Mean of observed values
 mu <- mean(train$rating)
 
 # Create a table to store the error scores
-scores <- tibble(Method = "Project Goal", RMSE = RMSE_GOAL)
+scores <- tibble(Method = "RMSE Project Goal", RMSE = RMSE_GOAL)
 
-# Update the error table
+# Update the scores table
 scores <- bind_rows(scores,
                     tibble(Method = "Mean",
                            RMSE = RMSE(test$rating, mu)))
@@ -756,23 +825,29 @@ scores %>% knitr::kable()
 #
 # bi is the movie effect (bias) for movie i. The formula is:
 #
-# y_hat = mu + bi
+# y_hat = mu + bi + epsilon u,i
 #
-# Movie effects (bi)
+# Create the Movie effects (bi) subset
 bi <- train %>%
   group_by(movieId) %>%
   summarise(b_i = mean(rating - mu))
 
+# Show the first six rows of this subset
 head(bi)
 
+
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot the distribution of movie effects
 bi %>% ggplot(aes(x = b_i)) +
-  geom_histogram(bins=10, col = I("black")) +
+  geom_histogram(bins=10, col = I("black"), alpha = 0.3) +
   ggtitle("Movie Effects Distribution") +
   xlab("Movie effects") +
   ylab("Counts") +
   scale_y_continuous(labels = comma) +
   theme_bw()
+
+#```  
+
 
 # Predict the rating with mean + bi
 y_hat_bi <- mu + test %>%
@@ -804,22 +879,26 @@ scores %>% knitr::kable()
 #
 # bu is the user effect (bias) for user u. The formula is:
 #
-# y_hat = mu + bi + bu
+# y_hat = mu + bi + bu + epsilon u,i
 #
-# User effects (bu)
+# Create the User effects (bu) subset
 bu <- train %>%
   left_join(bi, by = 'movieId') %>%
   group_by(userId) %>%
   summarise(b_u = mean(rating - mu - b_i))
 
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot the distribution of user effects
 bu %>% ggplot(aes(x = b_u)) +
-  geom_histogram(col = I("black")) +
+  geom_histogram(col = I("black"), alpha = 0.3) +
   ggtitle("User Effect Distribution") +
   xlab("User effects") +
   ylab("Counts") +
   scale_y_continuous(labels = comma) +
   theme_bw()
+
+#```  
+
 
 # Predict the rating with mean + bi + bu
 y_hat_bi_bu <- test %>%
@@ -847,18 +926,18 @@ scores %>% knitr::kable()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
-# 3.2.4. Verifying the models
+# 3.2.4. Verifying the model
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
-# First, we are going to check if the model y_hat = mu + bi (Movie Effect) makes good ratings predictions.
+# We are going to check if the model y_hat = mu + bi (Movie Effect) makes good ratings predictions.
 # For that, we need to create this new dataset using the "train" set that connects movieId to movie title.
 titles_bi <- train %>% 
   select(movieId, title) %>% 
   distinct()
 
-# Now, we are going to display the 10 best movies based on bi with this code. Here we are using the bi set,
-# titles_bi set and ranked by bi.
+# Now, we are going to display the 10 best movies based on bi (ranked by bi) with this code. Here we are using the bi
+# and titles_bi sets.
 bi %>% 
   inner_join(titles_bi, by = "movieId") %>% 
   arrange(-b_i) %>%
@@ -917,7 +996,7 @@ train %>% count(movieId) %>%
 #
 ################################################################################################
 #
-# The next procedure is Regularization, for that we need to regularize the movie and user effects
+# The next process is Regularization, for that we need to regularize the movie and user effects
 # aggregating a penalty term or factor which is known as lambda and which is also a tuning parameter.
 # we establish a set of values for lambda and use cross-validation to pick the best value that
 # minimizes the RMSE.
@@ -926,6 +1005,7 @@ train %>% count(movieId) %>%
 lambdas <- seq(0, 10, 0.25)
 
 # use cross-validation for tuning lambda
+# NOTE: Take aprox. 2 to 3 minutes
 rmses <- sapply(lambdas, function(lambda){
   
   # Mean
@@ -944,8 +1024,7 @@ rmses <- sapply(lambdas, function(lambda){
     summarise(b_u = sum(rating - b_i - mu)/(n()+lambda))
   
   # Predict mu + bi + bu
-  predicted_ratings <- 
-    test %>% 
+  predicted_ratings <- test %>% 
     left_join(b_i, by = "movieId") %>%
     left_join(b_u, by = "userId") %>%
     filter(!is.na(b_i), !is.na(b_u)) %>%
@@ -956,16 +1035,19 @@ rmses <- sapply(lambdas, function(lambda){
 })
 
 
+#```{r, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', out.width='80%'}
 # Plot the Lambdas vs RMSE
 tibble(Lambdas = lambdas, RMSE = rmses) %>%
   ggplot(aes(x = Lambdas, y = RMSE)) +
   geom_point() +
-  ggtitle("Regularization", 
+  ggtitle("Regularization (Lambdas vs. RMSE)", 
           subtitle = "Choose the best value of Lambda that minimizes the RMSE.") +
   theme_bw()
 
+#```  
 
-# Here is the best value of lambda
+
+# To know which is the best value of lambda
 lambda <- lambdas[which.min(rmses)]
 lambda
 
@@ -1024,7 +1106,8 @@ scores %>% knitr::kable()
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
 # Previously we were able to verify that our Linear model with Regularization reached the
-# goal of RMSE. Now we will proceed to perform the final validation on the validation set.
+# goal of RMSE. Now we will proceed to perform the final validation on the `validation` set,
+# using the `edx` set like training set.
 # Here is the code.
 #
 # Mean
@@ -1057,7 +1140,7 @@ scores <- bind_rows(scores,
 scores %>% knitr::kable()
 
 
-# Check if the Ending Regularization on edx and validation is minor than RMSE GOAL
+# Check if the Ending Regularization on `edx` and `validation` is minor than RMSE GOAL
 scores[6,]
 
 scores[6,2] < RMSE_GOAL
@@ -1065,7 +1148,7 @@ scores[6,2] < RMSE_GOAL
 # As we could see, we achieved our goal.
 
 
-# Top 10 best movies
+# We verify our **the final validation**, the Top 10 best movies
 validation %>%
   left_join(bi_end_edx, by = "movieId") %>%
   left_join(bu_end_edx, by = "userId") %>%
@@ -1073,9 +1156,9 @@ validation %>%
   arrange(-pred) %>%
   group_by(title) %>%
   select(title) %>%
-  top_n(10)
+  head(10)
 
-# Top 10 worst movies
+# the Top 10 worst movies
 validation %>%
   left_join(bi_end_edx, by = "movieId") %>%
   left_join(bu_end_edx, by = "userId") %>%
@@ -1083,7 +1166,7 @@ validation %>%
   arrange(pred) %>%
   group_by(title) %>%
   select(title) %>%
-  top_n(10)
+  head(10)
 
 #
 #++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1091,10 +1174,17 @@ validation %>%
 # 3.4.1. Linear Model With Regularization
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+#
 #
 #++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
 #
 # 3.4 Ending Results in the Validation Set
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+#
+#++++++++++++++++++++++++++++++++++++++ End of: ++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# 3. Results
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

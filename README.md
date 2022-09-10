@@ -39,5 +39,8 @@ presents the modeling results and discusses the model performance. In __Chapter 
 gives a brief summary of the report, its limitations and future work. And finally, in the extra
 section __Appendix__, that is divided into two parts, shows the information about the computer
 equipment used, its hardware specs, `R` session, the Operating Systems (OS) where this code was
-made (Appendix A) and tested (Appendix B), and the loaded packages.
-
+made (Appendix A) and tested (Appendix B), and the loaded packages.  
+<br />
+<br />
+__IMPORTANT:__ We installed [Git LFS](https://git-lfs.github.com/) to allow large file storage
+in this repository or project. The file types are `rda`, `csv` and `dat`.

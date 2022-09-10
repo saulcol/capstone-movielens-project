@@ -17,8 +17,6 @@ For this specific project, the structure of its directories is:
 - code_movielens_proj.R
 - report_movielens_proj.pdf
 <br />
-<br />
-<br />
 ## The `code_movielens_proj.R` file
 
 This file contents all the code used from prepare the project and download the datasets from a
